@@ -189,7 +189,7 @@ export function assessCampaignIntake(intake: CampaignIntake) {
     ],
     instruction: missing.length
       ? "Ask only the listed missing questions in one concise batch. Do not create a plan or generate an asset yet."
-      : "Create a campaign plan next; do not generate an asset until a concept is selected and explicitly approved.",
+      : "Create a campaign plan next; do not generate an asset until the user clearly selects a concept.",
   };
 }
 
@@ -243,7 +243,7 @@ export function createCampaignPlan(input: CampaignIntake) {
     planId: plan.id,
     campaignSummary: { campaignName: brief.campaignName, objective: brief.objective, audience: brief.audience, platforms: brief.platforms, callToAction: brief.callToAction },
     concepts: plan.concepts,
-    approvalPrompt: "Choose one concept by id and explicitly approve it. No image will be generated before approval.",
+    approvalPrompt: "Present the concepts using friendly names. A clear natural-language choice of one concept is enough to continue; do not require a fixed approval phrase.",
   };
 }
 
@@ -331,6 +331,6 @@ export function getCampaignWorkflowStatus(planId?: string) {
 export function requireApprovedPlan(planId: string): { plan: CampaignPlan } | { error: string } {
   const plan = plans.get(planId);
   if (!plan) return { error: "Campaign plan was not found. Start with assess_campaign_intake and create_campaign_plan." };
-  if (!plan.approved || !plan.selectedConceptId) return { error: "Image generation is locked until the user selects and explicitly approves a concept." };
+  if (!plan.approved || !plan.selectedConceptId) return { error: "Image generation is locked until the user clearly selects a concept." };
   return { plan };
 }

@@ -7,7 +7,7 @@ CampaignForge (user-facing orchestrator)
   -> assess_campaign_intake
   -> CampaignForge Planner (private concept recommendation)
   -> create_campaign_plan
-  -> Human: select + approve concept
+  -> Human: select a concept naturally
   -> approve_campaign_concept
   -> CampaignForge Executor (private production brief)
   -> generate_image(planId, production brief)
@@ -34,7 +34,7 @@ CampaignForge is the saved user-facing parent agent. It creates named dynamic ch
 
 ## Approval model
 
-`create_campaign_plan` creates three concept ids: `product-hero`, `audience-moment`, and `benefit-proof`. `generate_image` requires a plan id unlocked by `approve_campaign_concept`. A missing, unselected, or unapproved plan returns a server-side error and does not call OpenAI.
+`create_campaign_plan` creates three concept ids: `product-hero`, `audience-moment`, and `benefit-proof`. `generate_image` requires a plan id unlocked by `approve_campaign_concept`. A clear natural-language choice such as “Audience moment”, “the second one”, or “go with the hero version” is enough to unlock the selected concept; no fixed confirmation phrase is required. A missing or unselected plan returns a server-side error and does not call OpenAI.
 
 ## TrueForge setup
 

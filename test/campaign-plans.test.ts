@@ -79,7 +79,13 @@ test("full campaign requests retain the CTA gate", () => {
   assert.deepEqual(result.missingQuestions.map(question => question.field), ["callToAction"]);
 });
 
-test("image execution remains locked until explicit concept approval", () => {
+test("a plan requests a natural-language concept choice rather than a magic approval phrase", () => {
+  const planned = createCampaignPlan(completeIntake);
+  assert.match(planned.approvalPrompt!, /natural-language choice/i);
+  assert.doesNotMatch(planned.approvalPrompt!, /explicitly approve/i);
+});
+
+test("image execution remains locked until a concept selection is recorded", () => {
   const planned = createCampaignPlan(completeIntake);
   assert.equal(planned.status, "awaiting_concept_approval");
   assert.ok(planned.planId);

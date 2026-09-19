@@ -40,7 +40,7 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("approve_campaign_concept", {
     title: "Approve selected campaign concept",
-    description: "Human approval gate. Unlocks image generation only when the user has explicitly approved the selected concept from this campaign plan.",
+    description: "Selection gate. Unlocks image generation after the user has made a clear, unambiguous natural-language selection of one shown concept. A concept name, option number, or ordinary instruction such as 'go with the hero version' is sufficient; never require a magic approval phrase. Do not call when the user is undecided, comparing, or requesting a revision without selecting a concept.",
     inputSchema: {
       planId: z.string().uuid(),
       conceptId: z.enum(["product-hero", "audience-moment", "benefit-proof"]),
