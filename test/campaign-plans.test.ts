@@ -51,9 +51,11 @@ test("intake provides chat-first guidance without an interactive form contract",
   assert.match(result.chatGuidance.format, /chat message/i);
   assert.match(result.chatGuidance.choices, /never as buttons/i);
   assert.match(result.chatGuidance.platforms, /comma-separated/i);
-  assert.match(result.markdownReplyTemplate!, /^## A few details/m);
-  assert.match(result.markdownReplyTemplate!, /```text/);
-  assert.match(result.markdownReplyTemplate!, /Platforms: …/);
+  assert.match(result.markdownReplyTemplate!, /^I can shape this/m);
+  assert.match(result.markdownReplyTemplate!, /1\. \*\*What should this campaign achieve\?\*\*/);
+  assert.match(result.markdownReplyTemplate!, /Where should this run\?/);
+  assert.match(result.markdownReplyTemplate!, /You can reply in a sentence or use the numbers\./);
+  assert.doesNotMatch(result.markdownReplyTemplate!, /```text/);
 });
 
 test("quick image requests ask for placement but do not force a CTA", () => {

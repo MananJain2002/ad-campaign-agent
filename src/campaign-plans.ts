@@ -133,30 +133,30 @@ function normalizeIntake(input: CampaignIntake) {
 }
 
 function markdownReplyTemplate(missing: IntakeQuestion[]) {
-  const lines = missing.map(question => {
-    const choices = question.options?.map(option => option.label).join(", ");
-    return choices
-      ? `- **${question.field === "callToAction" ? "Call to action" : question.field[0]!.toUpperCase() + question.field.slice(1)}** — ${question.question} _(${choices})_`
-      : `- **${question.field === "callToAction" ? "Call to action" : question.field[0]!.toUpperCase() + question.field.slice(1)}** — ${question.question}`;
-  });
-
-  const replyFields = missing.map(question => {
-    const label = question.field === "callToAction" ? "CTA" : question.field[0]!.toUpperCase() + question.field.slice(1);
-    return `${label}: …`;
-  });
+  const suggestions: Partial<Record<keyof CampaignIntake, string>> = {
+    product: "For example: what it does, why it matters, and any facts that must stay accurate.",
+    objective: "For example: build awareness, generate leads, drive sales, encourage installs, or promote an event.",
+    audience: "For example: first-time founders, parents of young children, or frequent business travellers.",
+    platforms: "For example: Instagram and Facebook feed, LinkedIn, TikTok, or a mix.",
+    callToAction: "For example: Shop now, Start a free trial, Book a demo, or no CTA for an awareness visual.",
+  };
+  const labels: Partial<Record<keyof CampaignIntake, string>> = {
+    product: "What are we promoting?",
+    objective: "What should this campaign achieve?",
+    audience: "Who should this feel made for?",
+    platforms: "Where should this run?",
+    callToAction: "What should people do after seeing it?",
+  };
+  const lines = missing.map((question, index) => `${index + 1}. **${labels[question.field] || question.question}** — ${suggestions[question.field] || question.question}`);
 
   return [
-    "## A few details before I plan the campaign",
+    "I can shape this into a campaign that fits the audience and placement.",
     "",
-    "I have the product context. Please share:",
+    "A few quick choices will help me make the first direction useful:",
     "",
     ...lines,
     "",
-    "Reply naturally, or use this format:",
-    "",
-    "```text",
-    ...replyFields,
-    "```",
+    "You can reply in a sentence or use the numbers.",
   ].join("\n");
 }
 
