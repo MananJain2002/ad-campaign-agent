@@ -147,7 +147,7 @@ function markdownReplyTemplate(missing: IntakeQuestion[]) {
     platforms: "Where should this run?",
     callToAction: "What should people do after seeing it?",
   };
-  const lines = missing.map((question, index) => `${index + 1}. **${labels[question.field] || question.question}** — ${suggestions[question.field] || question.question}`);
+  const lines = missing.map((question, index) => `**${index + 1}. ${labels[question.field] || question.question}** — ${suggestions[question.field] || question.question}`);
 
   return [
     "I can shape this into a campaign that fits the audience and placement.",
@@ -175,6 +175,7 @@ export function assessCampaignIntake(intake: CampaignIntake) {
     optionalPresentationQuestions,
     chatGuidance: {
       format: "Ask the missing questions in one compact chat message. For a direct image request with no platform, always ask where it will run before planning; the user may answer in any natural format.",
+      numberedQuestions: "Render each question with a literal visible bold prefix such as **1. Where should this run?**. Never rely on automatic ordered-list rendering or present an unnumbered batch of questions.",
       choices: "When options are available, show them inline as examples, never as buttons, forms, radio groups, or checkboxes.",
       platforms: "Accept a comma-separated or natural-language list of platforms and normalize known values to linkedin, instagram, facebook, and tiktok.",
     },
