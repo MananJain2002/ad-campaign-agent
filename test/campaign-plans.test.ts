@@ -16,6 +16,16 @@ test("intake exposes only decision-critical missing questions", () => {
   const result = assessCampaignIntake({ product: completeIntake.product });
   assert.equal(result.readyForPlanning, false);
   assert.deepEqual(result.missingQuestions.map(question => question.field), ["objective", "audience", "platforms", "callToAction"]);
+  assert.equal(result.missingQuestions.find(question => question.field === "objective")?.selection, "single");
+  assert.equal(result.missingQuestions.find(question => question.field === "platforms")?.selection, "multiple");
+  assert.equal(result.optionalPresentationQuestions[0]?.selection, "single");
+});
+
+test("planning supplies safe campaign-name and tone defaults", () => {
+  const { campaignName: _campaignName, tone: _tone, ...minimumPlan } = completeIntake;
+  const planned = createCampaignPlan(minimumPlan);
+  assert.equal(planned.status, "awaiting_concept_approval");
+  assert.equal(planned.campaignSummary?.campaignName, `Campaign for ${minimumPlan.product}`);
 });
 
 test("image execution remains locked until explicit concept approval", () => {

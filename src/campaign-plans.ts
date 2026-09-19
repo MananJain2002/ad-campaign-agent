@@ -39,22 +39,65 @@ type CampaignPlan = {
 
 const plans = new Map<string, CampaignPlan>();
 
-const questions: Array<{ key: keyof CampaignIntake; question: string; why: string }> = [
-  { key: "product", question: "What product, service, or offer should this campaign promote?", why: "The hero subject and claims cannot be inferred safely." },
-  { key: "objective", question: "What is the primary outcome: awareness, leads, sales, app installs, event registrations, or something else?", why: "The objective determines the message and CTA." },
-  { key: "audience", question: "Who is the specific target audience?", why: "Audience changes the creative, tone, and proof points." },
-  { key: "platforms", question: "Where will this ad run (for example, LinkedIn, Instagram feed, Instagram story, Facebook, or TikTok)?", why: "Placement determines dimensions, pacing, and copy treatment." },
-  { key: "callToAction", question: "What should a viewer do after seeing the ad?", why: "The CTA anchors the campaign message." },
+type Choice = { value: string; label: string; description?: string };
+type IntakeQuestion = {
+  field: keyof CampaignIntake;
+  question: string;
+  why: string;
+  selection: "text" | "single" | "multiple";
+  placeholder?: string;
+  options?: Choice[];
+};
+
+const objectiveChoices: Choice[] = [
+  { value: "Build awareness", label: "Build awareness", description: "Make more of the right people aware of the offer." },
+  { value: "Generate leads", label: "Generate leads", description: "Drive enquiries, sign-ups, or qualified contacts." },
+  { value: "Drive sales", label: "Drive sales", description: "Motivate a purchase or conversion now." },
+  { value: "Drive app installs", label: "Drive app installs", description: "Acquire new app users." },
+  { value: "Promote an event", label: "Promote an event", description: "Drive registrations or attendance." },
+];
+
+const platformChoices: Choice[] = [
+  { value: "linkedin", label: "LinkedIn", description: "Professional feed placement." },
+  { value: "instagram", label: "Instagram", description: "Feed, Story, or Reel creative." },
+  { value: "facebook", label: "Facebook", description: "Feed and paid social placement." },
+  { value: "tiktok", label: "TikTok", description: "Vertical, discovery-led placement." },
+];
+
+const styleChoices: Choice[] = [
+  { value: "photorealistic product photography", label: "Photorealistic", description: "Polished, studio-quality campaign photography." },
+  { value: "cinematic editorial", label: "Cinematic", description: "Dramatic lighting and a premium editorial mood." },
+  { value: "clean graphic design", label: "Graphic", description: "Bold, minimal shapes and an art-directed layout." },
+  { value: "warm lifestyle photography", label: "Lifestyle", description: "Natural, human and aspirational." },
+];
+
+const questions: IntakeQuestion[] = [
+  { field: "product", question: "What product, service, or offer should this campaign promote?", why: "The hero subject and claims cannot be inferred safely.", selection: "text", placeholder: "Describe the product, offer, and any facts that must be accurate." },
+  { field: "objective", question: "What is the primary campaign outcome?", why: "The objective determines the message and CTA.", selection: "single", options: objectiveChoices },
+  { field: "audience", question: "Who is the specific target audience?", why: "Audience changes the creative, tone, and proof points.", selection: "text", placeholder: "For example: founders at 10–100 person SaaS companies." },
+  { field: "platforms", question: "Where will this ad run? Select every platform that applies.", why: "Placement determines dimensions, pacing, and copy treatment.", selection: "multiple", options: platformChoices },
+  { field: "callToAction", question: "What should a viewer do after seeing the ad?", why: "The CTA anchors the campaign message.", selection: "text", placeholder: "For example: Start a free trial, Shop now, or Book a demo." },
+];
+
+const optionalPresentationQuestions: IntakeQuestion[] = [
+  { field: "tone", question: "Choose a visual direction (optional).", why: "This guides the first creative direction but is not required to plan.", selection: "single", options: styleChoices },
+  { field: "requiredInImageText", question: "Should the image contain exact text?", why: "Generated text can be unreliable, so exact legal copy or a headline must be supplied deliberately.", selection: "text", placeholder: "Leave blank for a no-text image with clean overlay space." },
 ];
 
 export function assessCampaignIntake(intake: CampaignIntake) {
   const missing = questions.filter(item => {
-    const value = intake[item.key];
+    const value = intake[item.field];
     return value === undefined || (Array.isArray(value) && value.length === 0);
   });
   return {
     readyForPlanning: missing.length === 0,
-    missingQuestions: missing.map(({ key, question, why }) => ({ field: key, question, why })),
+    missingQuestions: missing.map(({ field, question, why, selection, placeholder, options }) => ({ field, question, why, selection, placeholder, options })),
+    optionalPresentationQuestions,
+    uiContract: {
+      singleChoice: "Render a RadioGroup. Exactly one option can be selected.",
+      multipleChoice: "Render a CheckBoxGroup. The user may select any number of options.",
+      submittedValues: "On submit, send the form values to the assistant. Convert checked platform keys to the platforms array and use the selected visual direction as tone.",
+    },
     optionalInformation: [
       "Brand assets or official logo/product photo (only if it must appear exactly)",
       "Brand colors, typography, and prohibited claims",
@@ -92,7 +135,12 @@ function conceptsFor(brief: CampaignBrief): CampaignConcept[] {
 export function createCampaignPlan(input: CampaignIntake) {
   const readiness = assessCampaignIntake(input);
   if (!readiness.readyForPlanning) return { ...readiness, plan: undefined };
-  const brief = campaignBriefSchema.parse({ ...input, assetUrls: input.assetUrls || [] });
+  const brief = campaignBriefSchema.parse({
+    ...input,
+    campaignName: input.campaignName || `Campaign for ${input.product}`,
+    tone: input.tone || "clear, modern, brand-appropriate",
+    assetUrls: input.assetUrls || [],
+  });
   const plan: CampaignPlan = {
     id: randomUUID(),
     brief,
