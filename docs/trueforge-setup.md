@@ -42,11 +42,11 @@ Skills need an enabled sandbox in TrueForge because they are materialized from G
 
 ## 5. Create the CampaignForge agent hierarchy
 
-Create the user-facing parent agent named `campaignforge`, plus private role agents named `campaignforge-planner` and `campaignforge-executor`.
+Create the user-facing parent agent named `campaignforge`. It creates private dynamic child threads named `CampaignForge Planner` and `CampaignForge Executor` when their respective phase begins.
 
 - Attach the OpenAI model and CampaignForge MCP connector to `campaignforge`. Enable dynamic sub-agents and context compaction. Disable generative UI and user-question widgets so the regular chat composer is the only user-input surface.
 - Give the parent only `assess_campaign_intake`, `create_campaign_plan`, `approve_campaign_concept`, and `generate_image`. It owns all state-changing calls and decides when to delegate.
-- Configure `campaignforge-planner` and `campaignforge-executor` as private, least-privilege role prompts. The planner returns creative recommendations from the normalized brief; the executor returns a production-ready image brief from an approved concept. Neither speaks to the campaign user, approves a concept, generates media, or publishes.
+- The parent must pass each dynamic child a self-contained, constrained role prompt. The Planner returns creative recommendations from the normalized brief; the Executor returns a production-ready image brief from an approved concept. Neither speaks to the campaign user, approves a concept, generates media, or publishes.
 - Keep campaign content in the visible chat. Tool calls, dynamic sub-agent work, and internal identifiers belong only in TrueForge Agent steps.
 - Configure `publish_post` as an approval-required/destructive tool in your TrueForge deployment. This is mandatory before enabling publishing.
 
