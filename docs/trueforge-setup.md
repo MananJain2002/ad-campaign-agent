@@ -40,13 +40,14 @@ In **TrueForge → Settings → Skills**, import this repository and enable:
 
 Skills need an enabled sandbox in TrueForge because they are materialized from Git at runtime.
 
-## 5. Create the Campaign Orchestrator agent
+## 5. Create the CampaignForge agent hierarchy
 
-Create one agent named `Campaign Orchestrator`.
+Create the user-facing parent agent named `campaignforge`, plus private role agents named `campaignforge-planner` and `campaignforge-executor`.
 
-- Attach the OpenAI model, CampaignForge MCP connector, and all five skills.
-- Enable subagents and context compaction.
-- In its instructions, state: use the skills in order; do not generate images until one concept is explicitly selected; use `campaign-creative` to write a complete advertising brief before every `generate_image` call; do not publish before final package approval; request approval for each `publish_post` tool call.
+- Attach the OpenAI model and CampaignForge MCP connector to `campaignforge`. Enable dynamic sub-agents and context compaction. Disable generative UI and user-question widgets so the regular chat composer is the only user-input surface.
+- Give the parent only `assess_campaign_intake`, `create_campaign_plan`, `approve_campaign_concept`, and `generate_image`. It owns all state-changing calls and decides when to delegate.
+- Configure `campaignforge-planner` and `campaignforge-executor` as private, least-privilege role prompts. The planner returns creative recommendations from the normalized brief; the executor returns a production-ready image brief from an approved concept. Neither speaks to the campaign user, approves a concept, generates media, or publishes.
+- Keep campaign content in the visible chat. Tool calls, dynamic sub-agent work, and internal identifiers belong only in TrueForge Agent steps.
 - Configure `publish_post` as an approval-required/destructive tool in your TrueForge deployment. This is mandatory before enabling publishing.
 
 Suggested test prompt: use the structured brief in `fixtures/launch-brief.json`, replacing its sample asset URL with a real public image URL before media generation.

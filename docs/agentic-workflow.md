@@ -1,14 +1,16 @@
 # CampaignForge agentic workflow
 
-CampaignForge uses a gated three-role workflow. The MCP service enforces the critical transition, so a prompt alone cannot bypass concept approval.
+CampaignForge uses a gated parent-and-sub-agent workflow. The MCP service enforces the critical transition, so a prompt alone cannot bypass concept approval.
 
 ```text
-Orchestrator
+CampaignForge (user-facing orchestrator)
   -> assess_campaign_intake
-  -> Planner: create_campaign_plan
+  -> CampaignForge Planner (private concept recommendation)
+  -> create_campaign_plan
   -> Human: select + approve concept
   -> approve_campaign_concept
-  -> Executor: generate_image(planId, production brief)
+  -> CampaignForge Executor (private production brief)
+  -> generate_image(planId, production brief)
   -> inline PNG in TrueForge chat
 ```
 
@@ -22,7 +24,7 @@ The user-facing orchestrator collects these details conversationally through the
 
 The chat surface contains campaign content only: intake questions, three creative directions, approval requests, and the delivered image. It never exposes internal plan IDs, agent roles, skills, tools, or status tables. TrueForge's built-in collapsible Agent steps remains the observability surface for tool calls and execution details.
 
-CampaignForge executes constrained planner and executor roles inside one saved, user-facing orchestrator agent. Those roles are an implementation detail, not copy shown to the campaign user.
+CampaignForge is the saved user-facing parent agent. It delegates bounded planning and execution work to dynamic Planner and Executor sub-agents, reviews each result, and retains responsibility for all state-changing tools. The sub-agents are implementation details, not copy shown to the campaign user.
 
 ## Approval model
 
@@ -34,10 +36,10 @@ Create three agents using the prompt files under `agents/`:
 
 | Agent | Tools |
 | --- | --- |
-| `campaignforge-orchestrator` | `assess_campaign_intake`, `create_campaign_plan`, `approve_campaign_concept`, `generate_image` |
-| `campaignforge-planner` | `assess_campaign_intake`, `create_campaign_plan`, `approve_campaign_concept` |
-| `campaignforge-executor` | `generate_image` |
+| `campaignforge` | `assess_campaign_intake`, `create_campaign_plan`, `approve_campaign_concept`, `generate_image` |
+| `campaignforge-planner` | None — receives the normalized brief from the parent and returns concept recommendations. |
+| `campaignforge-executor` | None — receives the approved concept from the parent and returns a production-ready image brief. |
 
-Use the orchestrator as the user-facing agent. The planner and executor are constrained role configurations for separate reviews or future agent-to-agent delegation. Disable sandbox, file downloads, dynamic subagents, and generative UI for all three. The orchestrator's intake is chat-first; preload the listed tools.
+Use `campaignforge` as the user-facing agent. Enable dynamic sub-agents only for it. The planner and executor are constrained child-role configurations; disable sandbox, file downloads, dynamic sub-agents, generative UI, and user-question widgets for both. The parent intake is chat-first.
 
 The prompts follow OpenAI’s guidance: make tool descriptions explicit and validate state server-side; for image production specify intended use, subject, composition, style, and constraints, while keeping model settings separate from the prompt.
