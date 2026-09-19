@@ -3,6 +3,7 @@ import { z } from "zod";
 import { campaignBriefSchema, type CampaignBrief } from "./types.js";
 
 const intakeSchema = z.object({
+  requestMode: z.enum(["quick_image", "full_campaign"]).optional(),
   campaignName: z.string().min(2).max(100).optional(),
   product: z.string().min(10).max(2000).optional(),
   audience: z.string().min(5).max(1000).optional(),
@@ -94,6 +95,46 @@ const optionalPresentationQuestions: IntakeQuestion[] = [
   { field: "requiredInImageText", question: "Should the image contain exact text?", why: "Generated text can be unreliable, so exact legal copy or a headline must be supplied deliberately.", selection: "text", placeholder: "Leave blank for a no-text image with clean overlay space." },
 ];
 
+type InferredDefault = { field: keyof CampaignIntake; value: string | string[]; reason: string };
+
+function compactProductName(product: string) {
+  return product.replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+function isNoCta(value: string | undefined) {
+  return value !== undefined && /^(none|no cta|nothing|n\/a|not applicable|just an ad|awareness)$/i.test(value.trim());
+}
+
+/**
+ * A direct image request is allowed to use ordinary creative defaults. A
+ * campaign-management request stays deliberately incomplete until the
+ * decision-critical brief fields are supplied.
+ */
+function normalizeIntake(input: CampaignIntake) {
+  const intake: CampaignIntake = { ...input };
+  const inferredDefaults: InferredDefault[] = [];
+  if (intake.requestMode !== "quick_image" || !intake.product) return { intake, inferredDefaults };
+
+  const product = compactProductName(intake.product);
+  if (!intake.objective) {
+    intake.objective = "Build awareness";
+    inferredDefaults.push({ field: "objective", value: intake.objective, reason: "A standalone ad-image request normally needs an awareness-first creative direction." });
+  }
+  if (!intake.audience) {
+    intake.audience = `General adult consumers likely to be interested in ${product}.`;
+    inferredDefaults.push({ field: "audience", value: intake.audience, reason: "No target segment was supplied for this standalone visual." });
+  }
+  if (!intake.platforms?.length) {
+    intake.platforms = ["instagram"];
+    inferredDefaults.push({ field: "platforms", value: intake.platforms, reason: "Instagram feed is the default social placement for a standalone image." });
+  }
+  if (!intake.callToAction || isNoCta(intake.callToAction)) {
+    intake.callToAction = "No explicit CTA — create an awareness visual with clean overlay space.";
+    inferredDefaults.push({ field: "callToAction", value: intake.callToAction, reason: "The request is for a visual, not a conversion flow." });
+  }
+  return { intake, inferredDefaults };
+}
+
 function markdownReplyTemplate(missing: IntakeQuestion[]) {
   const lines = missing.map(question => {
     const choices = question.options?.map(option => option.label).join(", ");
@@ -123,12 +164,16 @@ function markdownReplyTemplate(missing: IntakeQuestion[]) {
 }
 
 export function assessCampaignIntake(intake: CampaignIntake) {
+  const normalized = normalizeIntake(intake);
   const missing = questions.filter(item => {
-    const value = intake[item.field];
+    const value = normalized.intake[item.field];
     return value === undefined || (Array.isArray(value) && value.length === 0);
   });
   return {
     readyForPlanning: missing.length === 0,
+    requestMode: normalized.intake.requestMode || "full_campaign",
+    effectiveIntake: normalized.intake,
+    inferredDefaults: normalized.inferredDefaults,
     missingQuestions: missing.map(({ field, question, why, selection, placeholder, options }) => ({ field, question, why, selection, placeholder, options })),
     optionalPresentationQuestions,
     chatGuidance: {
@@ -172,19 +217,20 @@ function conceptsFor(brief: CampaignBrief): CampaignConcept[] {
 }
 
 export function createCampaignPlan(input: CampaignIntake) {
-  const readiness = assessCampaignIntake(input);
+  const normalized = normalizeIntake(input);
+  const readiness = assessCampaignIntake(normalized.intake);
   if (!readiness.readyForPlanning) return { ...readiness, plan: undefined };
   const brief = campaignBriefSchema.parse({
-    ...input,
-    campaignName: input.campaignName || `Campaign for ${input.product}`,
-    tone: input.tone || "clear, modern, brand-appropriate",
-    assetUrls: input.assetUrls || [],
+    ...normalized.intake,
+    campaignName: normalized.intake.campaignName || `Campaign for ${normalized.intake.product}`,
+    tone: normalized.intake.tone || "clear, modern, brand-appropriate",
+    assetUrls: normalized.intake.assetUrls || [],
   });
   const plan: CampaignPlan = {
     id: randomUUID(),
     brief,
-    brandGuidelines: input.brandGuidelines,
-    requiredInImageText: input.requiredInImageText,
+    brandGuidelines: normalized.intake.brandGuidelines,
+    requiredInImageText: normalized.intake.requiredInImageText,
     concepts: conceptsFor(brief),
     approved: false,
     imageGenerated: false,

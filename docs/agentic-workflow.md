@@ -20,6 +20,12 @@ The planner asks only for facts that change the output: product/offer, campaign 
 
 The user-facing orchestrator collects these details conversationally through the normal chat composer. It returns a standard Markdown message that lists only missing fields and provides a short plain-text reply template. It can offer known options inline and accepts natural-language answers. For platforms, it accepts a comma-separated list such as `LinkedIn, Instagram, TikTok`, normalizes the values, and re-runs the intake gate. It does not use TrueForge question widgets, forms, buttons, or generative UI.
 
+### Adaptive intake
+
+CampaignForge distinguishes a direct asset request from campaign management. A request such as “Generate an iPhone 18 Pro ad image” is a quick-image request: it defaults to an awareness objective, a broad relevant adult audience, an Instagram feed placement, and a no-CTA visual with clean overlay space. It asks no intake questions unless an exact legal line, mandatory brand asset, brand restriction, or required format cannot be inferred safely.
+
+A request for strategy, lead generation, copy, publishing, research, or multiple placements is a full-campaign request. In that mode, objective, audience, placement, and CTA remain decision-critical and CampaignForge asks only for the missing fields.
+
 ## Visible conversation
 
 The chat surface contains campaign content only: intake questions, three creative directions, approval requests, and the delivered image. It never exposes internal plan IDs, agent roles, skills, tools, or status tables. TrueForge's built-in collapsible Agent steps remains the observability surface for tool calls and execution details.

@@ -56,6 +56,29 @@ test("intake provides chat-first guidance without an interactive form contract",
   assert.match(result.markdownReplyTemplate!, /Platforms: …/);
 });
 
+test("quick image requests infer normal ad defaults instead of asking for a CTA", () => {
+  const result = assessCampaignIntake({
+    requestMode: "quick_image",
+    product: "iPhone 18 Pro conceptual launch campaign",
+  });
+  assert.equal(result.readyForPlanning, true);
+  assert.equal(result.effectiveIntake.objective, "Build awareness");
+  assert.equal(result.effectiveIntake.platforms?.[0], "instagram");
+  assert.match(result.effectiveIntake.callToAction!, /No explicit CTA/);
+  assert.deepEqual(result.missingQuestions, []);
+});
+
+test("full campaign requests retain the CTA gate", () => {
+  const result = assessCampaignIntake({
+    requestMode: "full_campaign",
+    product: completeIntake.product,
+    objective: completeIntake.objective,
+    audience: completeIntake.audience,
+    platforms: completeIntake.platforms,
+  });
+  assert.deepEqual(result.missingQuestions.map(question => question.field), ["callToAction"]);
+});
+
 test("image execution remains locked until explicit concept approval", () => {
   const planned = createCampaignPlan(completeIntake);
   assert.equal(planned.status, "awaiting_concept_approval");

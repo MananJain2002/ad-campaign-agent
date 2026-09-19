@@ -28,13 +28,13 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("assess_campaign_intake", {
     title: "Assess campaign intake",
-    description: "Planning gate. Identifies the exact campaign details still needed before planning. Call this before creating a campaign plan. It never generates media or publishes.",
+    description: "Planning gate. Classify a direct request to generate one ad image as requestMode `quick_image`; it then safely infers awareness, broad audience, Instagram placement, and a no-CTA visual when absent. Use `full_campaign` only for strategy, lead generation, multiple placements, copy, publishing, or when the user explicitly wants a detailed managed campaign. Returns effectiveIntake and exact missing details. It never generates media or publishes.",
     inputSchema: campaignIntakeInputSchema,
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(assessCampaignIntake(input), null, 2) }] }));
 
   server.registerTool("create_campaign_plan", {
     title: "Create campaign plan",
-    description: "Planner-only tool. Creates three distinct campaign concepts after intake is complete. It never generates media. The user must select and explicitly approve one returned concept before execution.",
+    description: "Planner-only tool. Creates three distinct campaign concepts after intake is complete. A `quick_image` request may use the safe defaults returned by assess_campaign_intake; a full campaign may not. It never generates media. The user must select and explicitly approve one returned concept before execution.",
     inputSchema: campaignIntakeInputSchema,
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(createCampaignPlan(input), null, 2) }] }));
 
