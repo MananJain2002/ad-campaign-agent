@@ -51,7 +51,7 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("get_campaign_workflow_status", {
     title: "Get CampaignForge workflow status",
-    description: "Returns a UI-ready, safe activity snapshot: active role, phase, completed and next tools, project guides, and concise decision summaries. It never returns private chain-of-thought. Call it before presenting a workflow activity panel.",
+    description: "Diagnostic-only tool. Returns a safe activity snapshot for development and observability; it never returns private chain-of-thought. Do not call it during normal user-facing campaign chat or render its result in the transcript.",
     inputSchema: { planId: z.string().uuid().optional() },
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(getCampaignWorkflowStatus(input.planId), null, 2) }] }));
 
@@ -104,7 +104,7 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("get_platform_copy_guidance", {
     title: "Get platform-specific copy guidance",
-    description: "Executor-only planning tool. After concept selection, returns distinct editorial direction for LinkedIn, Instagram, Facebook, and/or TikTok using the approved campaign brief. The Executor uses it to write the actual ready-to-post captions. It never publishes, creates a draft, or invents product claims.",
+    description: "Executor-only planning tool. After concept selection, returns distinct editorial direction and platform-specific content-line/word guidance for LinkedIn, Instagram, Facebook, and/or TikTok. The Executor uses it to write actual ready-to-post captions with at least two meaningful content lines before optional hashtags. It never publishes, creates a draft, or invents product claims.",
     inputSchema: {
       planId: z.string().uuid(),
       copyDirection: z.string().min(2).max(1000).optional(),

@@ -284,26 +284,26 @@ export function getCampaignWorkflowStatus(planId?: string) {
   const roleDefinitions = [
     { role: "Orchestrator", responsibility: "Coordinates the workflow, approval gate, and delivery." },
     { role: "Planner", responsibility: "Collects the brief and creates campaign concepts." },
-    { role: "Executor", responsibility: "Produces an image only after concept approval." },
+    { role: "Executor", responsibility: "Produces the approved image and platform-specific campaign copy." },
   ];
   const tools = [
     { name: "assess_campaign_intake", role: "Planner", purpose: "Checks missing brief details." },
     { name: "create_campaign_plan", role: "Planner", purpose: "Creates the three concepts." },
     { name: "approve_campaign_concept", role: "Orchestrator", purpose: "Records human approval." },
     { name: "generate_image", role: "Executor", purpose: "Creates the approved PNG." },
-    { name: "get_platform_copy_guidance", role: "Executor", purpose: "Provides per-platform caption direction." },
+    { name: "get_platform_copy_guidance", role: "Executor", purpose: "Provides per-platform caption direction and length guidance." },
   ];
   const projectGuides = [
     { name: "campaign-brief", role: "Planner", purpose: "Structured intake and completeness checks." },
     { name: "campaign-strategy", role: "Planner", purpose: "Concept and positioning guidance." },
-    { name: "campaign-creative", role: "Executor", purpose: "Production-brief guidance for images." },
+    { name: "campaign-creative", role: "Executor", purpose: "Production-brief guidance for images and platform-specific copy." },
   ];
   if (!planId) {
     return {
       phase: "intake",
       activeRole: "Orchestrator",
-      activeAgent: "campaignforge-orchestrator",
-      executionModel: "One user-facing TrueForge agent switches between constrained Orchestrator, Planner, and Executor roles; these are not hidden subagent runs.",
+      activeAgent: "campaignforge",
+      executionModel: "CampaignForge orchestrates private dynamic Planner and Executor phases; their work is surfaced through the parent agent.",
       decisionSummary: "Awaiting the minimum campaign brief before planning.",
       roles: roleDefinitions.map(item => ({ ...item, state: item.role === "Orchestrator" ? "active" : "waiting" })),
       tools: tools.map(item => ({ ...item, state: item.name === "assess_campaign_intake" ? "next" : "waiting" })),
@@ -323,10 +323,10 @@ export function getCampaignWorkflowStatus(planId?: string) {
   return {
     phase,
     activeRole,
-    activeAgent: "campaignforge-orchestrator",
-    executionModel: "One user-facing TrueForge agent switches between constrained Orchestrator, Planner, and Executor roles; these are not hidden subagent runs.",
+    activeAgent: "campaignforge",
+    executionModel: "CampaignForge orchestrates private dynamic Planner and Executor phases; their work is surfaced through the parent agent.",
     decisionSummary: plan.imageGenerated
-      ? "The approved image is complete; the orchestrator can deliver it or handle a targeted revision."
+      ? "The approved image is complete; CampaignForge can deliver it with the platform-specific copy package or handle a targeted revision."
       : plan.approved
         ? "The selected concept is approved; the executor may generate the image."
         : "Three concepts are ready; waiting for the user's selection and explicit approval.",
