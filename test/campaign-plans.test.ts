@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { approveCampaignConcept, assessCampaignIntake, createCampaignPlan, requireApprovedPlan } from "../src/campaign-plans.js";
+import { approveCampaignConcept, assessCampaignIntake, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, requireApprovedPlan } from "../src/campaign-plans.js";
 
 const completeIntake = {
   campaignName: "Focus launch",
@@ -26,6 +26,24 @@ test("planning supplies safe campaign-name and tone defaults", () => {
   const planned = createCampaignPlan(minimumPlan);
   assert.equal(planned.status, "awaiting_concept_approval");
   assert.equal(planned.campaignSummary?.campaignName, `Campaign for ${minimumPlan.product}`);
+});
+
+test("workflow status exposes active role, safe summary, and tool states", () => {
+  const beforePlan = getCampaignWorkflowStatus();
+  assert.equal(beforePlan.activeRole, "Orchestrator");
+  assert.equal(beforePlan.tools.find(tool => tool.name === "assess_campaign_intake")?.state, "next");
+
+  const planned = createCampaignPlan(completeIntake);
+  const planning = getCampaignWorkflowStatus(planned.planId!);
+  assert.equal(planning.activeRole, "Planner");
+  assert.equal(planning.tools.find(tool => tool.name === "approve_campaign_concept")?.state, "next");
+
+  approveCampaignConcept({ planId: planned.planId!, conceptId: "product-hero", approved: true });
+  recordImageGeneration(planned.planId!, true);
+  const delivered = getCampaignWorkflowStatus(planned.planId!);
+  assert.equal(delivered.phase, "delivered");
+  assert.equal(delivered.tools.find(tool => tool.name === "generate_image")?.state, "completed");
+  assert.match(delivered.trueforgeSkills, /No native TrueForge skills/);
 });
 
 test("image execution remains locked until explicit concept approval", () => {

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { generateOpenAIImage } from "./openai-image.js";
-import { approveCampaignConcept, assessCampaignIntake, campaignIntakeInputSchema, createCampaignPlan, requireApprovedPlan } from "./campaign-plans.js";
+import { approveCampaignConcept, assessCampaignIntake, campaignIntakeInputSchema, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, requireApprovedPlan } from "./campaign-plans.js";
 import { researchUrl } from "./research.js";
 import { createPostDraft, getPostStatus, publishPost, validatePlatformPayload } from "./social.js";
 import { campaignBriefSchema, platformSchema, postPayloadSchema } from "./types.js";
@@ -48,6 +48,12 @@ export function createCampaignForgeServer(): McpServer {
     },
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(approveCampaignConcept(input), null, 2) }] }));
 
+  server.registerTool("get_campaign_workflow_status", {
+    title: "Get CampaignForge workflow status",
+    description: "Returns a UI-ready, safe activity snapshot: active role, phase, completed and next tools, project guides, and concise decision summaries. It never returns private chain-of-thought. Call it before presenting a workflow activity panel.",
+    inputSchema: { planId: z.string().uuid().optional() },
+  }, async input => ({ content: [{ type: "text", text: JSON.stringify(getCampaignWorkflowStatus(input.planId), null, 2) }] }));
+
   server.registerTool("research_brand_url", {
     title: "Research a supplied brand URL",
     description: "Optionally extracts first-party context from a user-supplied website using Firecrawl. Cite this URL in any strategy claim derived from it.",
@@ -66,7 +72,7 @@ export function createCampaignForgeServer(): McpServer {
   }, async ({ planId, ...input }) => {
     const planState = requireApprovedPlan(planId);
     if ("error" in planState) return { content: [{ type: "text", text: JSON.stringify({ error: planState.error, retryable: false }, null, 2) }], isError: true };
-    return generateOpenAIImage({
+    const result = await generateOpenAIImage({
       ...input,
       prompt: [
         `Approved campaign: ${planState.plan.brief.campaignName}`,
@@ -78,6 +84,8 @@ export function createCampaignForgeServer(): McpServer {
         `Executor brief: ${input.prompt}`,
       ].join("\n"),
     });
+    recordImageGeneration(planId, !result.isError);
+    return result;
   });
 
   server.registerTool("validate_platform_payload", {

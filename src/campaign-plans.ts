@@ -34,10 +34,20 @@ type CampaignPlan = {
   concepts: CampaignConcept[];
   selectedConceptId?: CampaignConcept["id"];
   approved: boolean;
+  imageGenerated: boolean;
+  activity: WorkflowActivity[];
   createdAt: string;
 };
 
 const plans = new Map<string, CampaignPlan>();
+
+type WorkflowRole = "Orchestrator" | "Planner" | "Executor";
+type WorkflowActivity = {
+  role: WorkflowRole;
+  tool: string;
+  summary: string;
+  at: string;
+};
 
 type Choice = { value: string; label: string; description?: string };
 type IntakeQuestion = {
@@ -148,6 +158,8 @@ export function createCampaignPlan(input: CampaignIntake) {
     requiredInImageText: input.requiredInImageText,
     concepts: conceptsFor(brief),
     approved: false,
+    imageGenerated: false,
+    activity: [{ role: "Planner", tool: "create_campaign_plan", summary: "Created three concepts and opened the concept-approval gate.", at: new Date().toISOString() }],
     createdAt: new Date().toISOString(),
   };
   plans.set(plan.id, plan);
@@ -168,7 +180,77 @@ export function approveCampaignConcept(input: { planId: string; conceptId: Campa
   if (!concept) return { error: "Concept does not belong to this campaign plan.", retryable: false };
   plan.selectedConceptId = input.conceptId;
   plan.approved = true;
+  plan.activity.push({ role: "Orchestrator", tool: "approve_campaign_concept", summary: `Recorded the user's approval for ${concept.name}.`, at: new Date().toISOString() });
   return { status: "approved_for_execution", planId: plan.id, selectedConcept: concept, instruction: "The executor may now call generate_image with this planId and a production-ready creative brief." };
+}
+
+export function recordImageGeneration(planId: string, success: boolean) {
+  const plan = plans.get(planId);
+  if (!plan) return;
+  plan.imageGenerated = success;
+  plan.activity.push({
+    role: "Executor",
+    tool: "generate_image",
+    summary: success ? "Generated the approved campaign image." : "Attempted image generation, but no final image was produced.",
+    at: new Date().toISOString(),
+  });
+}
+
+export function getCampaignWorkflowStatus(planId?: string) {
+  const roleDefinitions = [
+    { role: "Orchestrator", responsibility: "Coordinates the workflow, approval gate, and delivery." },
+    { role: "Planner", responsibility: "Collects the brief and creates campaign concepts." },
+    { role: "Executor", responsibility: "Produces an image only after concept approval." },
+  ];
+  const tools = [
+    { name: "assess_campaign_intake", role: "Planner", purpose: "Checks missing brief details." },
+    { name: "create_campaign_plan", role: "Planner", purpose: "Creates the three concepts." },
+    { name: "approve_campaign_concept", role: "Orchestrator", purpose: "Records human approval." },
+    { name: "generate_image", role: "Executor", purpose: "Creates the approved PNG." },
+  ];
+  const projectGuides = [
+    { name: "campaign-brief", role: "Planner", purpose: "Structured intake and completeness checks." },
+    { name: "campaign-strategy", role: "Planner", purpose: "Concept and positioning guidance." },
+    { name: "campaign-creative", role: "Executor", purpose: "Production-brief guidance for images." },
+  ];
+  if (!planId) {
+    return {
+      phase: "intake",
+      activeRole: "Orchestrator",
+      activeAgent: "campaignforge-orchestrator",
+      executionModel: "One user-facing TrueForge agent switches between constrained Orchestrator, Planner, and Executor roles; these are not hidden subagent runs.",
+      decisionSummary: "Awaiting the minimum campaign brief before planning.",
+      roles: roleDefinitions.map(item => ({ ...item, state: item.role === "Orchestrator" ? "active" : "waiting" })),
+      tools: tools.map(item => ({ ...item, state: item.name === "assess_campaign_intake" ? "next" : "waiting" })),
+      projectGuides,
+      trueforgeSkills: "No native TrueForge skills are attached to this saved agent yet; project guides are shown separately.",
+      activity: [],
+    };
+  }
+  const plan = plans.get(planId);
+  if (!plan) return { error: "Campaign plan was not found. Start a new campaign intake.", retryable: true };
+  const phase = plan.imageGenerated ? "delivered" : plan.approved ? "execution" : "concept_approval";
+  const activeRole: WorkflowRole = plan.imageGenerated ? "Orchestrator" : plan.approved ? "Executor" : "Planner";
+  const toolState = (name: string) => plan.activity.some(item => item.tool === name) ? "completed" : (
+    name === "generate_image" && plan.approved ? "next" :
+    name === "approve_campaign_concept" && !plan.approved ? "next" : "waiting"
+  );
+  return {
+    phase,
+    activeRole,
+    activeAgent: "campaignforge-orchestrator",
+    executionModel: "One user-facing TrueForge agent switches between constrained Orchestrator, Planner, and Executor roles; these are not hidden subagent runs.",
+    decisionSummary: plan.imageGenerated
+      ? "The approved image is complete; the orchestrator can deliver it or handle a targeted revision."
+      : plan.approved
+        ? "The selected concept is approved; the executor may generate the image."
+        : "Three concepts are ready; waiting for the user's selection and explicit approval.",
+    roles: roleDefinitions.map(item => ({ ...item, state: item.role === activeRole ? "active" : plan.activity.some(event => event.role === item.role) ? "completed" : "waiting" })),
+    tools: tools.map(item => ({ ...item, state: toolState(item.name) })),
+    projectGuides,
+    trueforgeSkills: "No native TrueForge skills are attached to this saved agent yet; project guides are shown separately.",
+    activity: plan.activity,
+  };
 }
 
 export function requireApprovedPlan(planId: string): { plan: CampaignPlan } | { error: string } {

@@ -24,6 +24,12 @@ When an answer has a known set of choices, the user-facing orchestrator renders 
 
 Submitting the form sends its selections back to the orchestrator, which normalizes the checked platform values and re-runs the intake gate.
 
+## Visible workflow activity
+
+The orchestrator calls `get_campaign_workflow_status` before showing each phase. The resulting TrueForge panel identifies the active role, role progress, currently completed/next tools, and the project guides in use. Its decision summary explains the workflow transition in concise, user-facing language; it intentionally does not expose private model chain-of-thought.
+
+CampaignForge currently executes these as constrained roles within one saved, user-facing orchestrator agent. The panel says this explicitly rather than implying hidden background subagents. Native TrueForge skills are shown separately from project guides, so the UI does not claim a skill is attached when it is not.
+
 ## Approval model
 
 `create_campaign_plan` creates three concept ids: `product-hero`, `audience-moment`, and `benefit-proof`. `generate_image` requires a plan id unlocked by `approve_campaign_concept`. A missing, unselected, or unapproved plan returns a server-side error and does not call OpenAI.
