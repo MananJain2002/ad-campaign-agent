@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { approveCampaignConcept, assessCampaignIntake, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, renderCampaignIntakeForm, requireApprovedPlan } from "../src/campaign-plans.js";
+import { approveCampaignConcept, assessCampaignIntake, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, requireApprovedPlan } from "../src/campaign-plans.js";
 
 const completeIntake = {
   campaignName: "Focus launch",
@@ -46,14 +46,11 @@ test("workflow status exposes active role, safe summary, and tool states", () =>
   assert.match(delivered.trueforgeSkills, /No native TrueForge skills/);
 });
 
-test("intake form uses radio controls for one choice and checkboxes for many", () => {
-  const form = renderCampaignIntakeForm({ product: completeIntake.product });
-  assert.equal(form.status, "form_ready");
-  assert.match(form.form!, /RadioGroup\("objective"/);
-  assert.match(form.form!, /CheckBoxGroup\("platforms"/);
-  assert.match(form.form!, /Input\("audience"/);
-  assert.match(form.form!, /@ToAssistant\("Submit campaign brief"\)/);
-  assert.doesNotMatch(form.form!, /required: true/);
+test("intake provides chat-first guidance without an interactive form contract", () => {
+  const result = assessCampaignIntake({ product: completeIntake.product });
+  assert.match(result.chatGuidance.format, /chat message/i);
+  assert.match(result.chatGuidance.choices, /never as buttons/i);
+  assert.match(result.chatGuidance.platforms, /comma-separated/i);
 });
 
 test("image execution remains locked until explicit concept approval", () => {
