@@ -3,20 +3,26 @@ import { saveGeneratedPng } from "./assets.js";
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 
-function buildAdvertisingPrompt(creativeBrief: string, size: "1024x1024" | "1024x1536" | "1536x1024"): string {
+export function buildAdvertisingPrompt(creativeBrief: string, size: "1024x1024" | "1024x1536" | "1536x1024"): string {
   const placement = size === "1536x1024"
-    ? "landscape paid-social placement"
+    ? "landscape paid-social placement (3:2)"
     : size === "1024x1536"
-      ? "vertical paid-social placement"
-      : "square paid-social placement";
+      ? "vertical paid-social placement (2:3)"
+      : "square paid-social placement (1:1)";
   return [
-    "Create one polished, production-ready static advertising image.",
-    `Intended use: ${placement}.`,
-    "Use the brief as the source of truth. Where a non-essential creative choice is absent, make a coherent, premium advertising decision rather than asking the viewer a question.",
-    "Campaign creative brief:",
+    "# Role and outcome",
+    "Create one polished, production-ready static image for a paid advertising campaign. This is a single campaign asset, not a product catalogue, interface mock-up, mood board, collage, presentation slide, or poster series.",
+    `Deliverable: ${placement}.`,
+    "The campaign source data below is authoritative. Resolve non-essential visual details with coherent, premium art direction; do not ask questions or expose a creative brief in the image.",
+    "# Campaign source data and approved execution direction",
     creativeBrief.trim(),
-    "Creative constraints: use one clear focal subject; make the campaign benefit visually legible at a glance; use deliberate composition, concrete lighting, and a cohesive color palette; preserve clean negative space for a future text overlay; avoid watermarks, UI chrome, mock browser frames, and unrequested logos.",
-    "Do not add any text, brand name, or call-to-action inside the image unless the creative brief supplies the exact wording and placement.",
+    "# Advertising art-direction requirements",
+    "Establish one unmistakable focal subject at a glance. Translate the selected campaign benefit into the scene visually rather than relying on decorative effects. Use intentional foreground, subject, and background separation; realistic or deliberately stylized materials appropriate to the supplied direction; controlled commercial lighting; a cohesive restrained palette; and a strong hierarchy that reads on a mobile feed.",
+    "Honor the specified composition, framing, and negative-space location. Keep that copy-safe area clean and calm: do not fill it with props, texture, interface elements, accidental text, or competing visual detail.",
+    "# Text, brand, and safety constraints",
+    "If the brief says NO IN-IMAGE TEXT, render no letters, words, numbers, logos, labels, watermarks, slogans, or call-to-action. If it supplies exact in-image wording, render only that exact wording once, at the requested placement; do not add any other text. Do not invent brand marks, product features, pricing, awards, testimonials, comparative claims, legal copy, or packaging details that were not supplied.",
+    "# Exclusions",
+    "No watermarks, UI chrome, browser frames, QR codes, split-screen layouts, contact sheets, generic stock-photo poses, duplicate products, or unrequested logos. Produce the final campaign image only.",
   ].join("\n\n");
 }
 
@@ -38,11 +44,11 @@ export async function generateOpenAIImage(input: {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-flare",
+        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
         prompt: buildAdvertisingPrompt(input.prompt, input.size || "1024x1024"),
         n: 1,
         size: input.size || "1024x1024",
-        quality: input.quality || process.env.OPENAI_IMAGE_QUALITY || "low",
+        quality: input.quality || process.env.OPENAI_IMAGE_QUALITY || "medium",
         output_format: "png",
       }),
     });
@@ -59,7 +65,7 @@ export async function generateOpenAIImage(input: {
     const inlineMarkdown = `![Generated campaign image](${asset.url})`;
     return jsonResult({
       provider: "openai",
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-flare",
+      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
       status: "completed",
       assetUrl: asset.url,
       inlineMarkdown,

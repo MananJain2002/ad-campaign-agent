@@ -62,7 +62,7 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("generate_image", {
     title: "Generate campaign image",
-    description: "Executor-only tool. Creates one static campaign image with OpenAI's Images API only after an approved campaign plan. Returns `inlineMarkdown` pointing at the generated PNG; copy it exactly onto its own line in the final reply so it renders in chat. Never create or link to SVGs, sandbox files, or download-only assets. The prompt must state campaign goal, audience, focal subject, composition, visual style, lighting, palette, and either exact in-image text with placement or an explicit no-text instruction.",
+    description: "Executor-only tool. Creates one static campaign image with OpenAI's Images API only after an approved campaign plan. CampaignForge automatically combines the approved strategy, selected concept, placement, brand constraints, and the Executor's production brief into a structured advertising prompt. The Executor must supply concrete subject/action, setting, composition, negative space, visual style, lighting, palette, and either exact in-image text with placement or `NO IN-IMAGE TEXT`. Returns `inlineMarkdown` pointing at the generated PNG; copy it exactly onto its own line in the final reply so it renders in chat. Never create or link to SVGs, sandbox files, or download-only assets.",
     inputSchema: {
       planId: z.string().uuid(),
       prompt: z.string().min(10).max(4000),
@@ -72,16 +72,28 @@ export function createCampaignForgeServer(): McpServer {
   }, async ({ planId, ...input }) => {
     const planState = requireApprovedPlan(planId);
     if ("error" in planState) return { content: [{ type: "text", text: JSON.stringify({ error: planState.error, retryable: false }, null, 2) }], isError: true };
+    const selectedConcept = planState.plan.concepts.find(concept => concept.id === planState.plan.selectedConceptId);
     const result = await generateOpenAIImage({
       ...input,
       prompt: [
-        `Approved campaign: ${planState.plan.brief.campaignName}`,
-        `Objective: ${planState.plan.brief.objective}`,
-        `Audience: ${planState.plan.brief.audience}`,
-        `CTA: ${planState.plan.brief.callToAction}`,
-        planState.plan.brandGuidelines ? `Brand guidelines: ${planState.plan.brandGuidelines}` : "Brand guidelines: no official logo or unsupported product claim.",
-        planState.plan.requiredInImageText ? `Required in-image text: ${planState.plan.requiredInImageText}` : "In-image text: none; preserve clean overlay space.",
-        `Executor brief: ${input.prompt}`,
+        "## Orchestrator-provided campaign inputs",
+        `Campaign name: ${planState.plan.brief.campaignName}`,
+        `Product or offer: ${planState.plan.brief.product}`,
+        `Campaign objective: ${planState.plan.brief.objective}`,
+        `Target audience: ${planState.plan.brief.audience}`,
+        `Platforms: ${planState.plan.brief.platforms.join(", ")}`,
+        `Tone: ${planState.plan.brief.tone || "Premium, clear, and appropriate to the selected concept."}`,
+        `Call to action context: ${planState.plan.brief.callToAction}`,
+        "## Approved creative direction",
+        `Concept: ${selectedConcept?.name || "Approved campaign concept"}`,
+        `Strategic role: ${selectedConcept?.strategy || "Use the approved campaign objective."}`,
+        `Visual route: ${selectedConcept?.visualDirection || "Use the campaign brief."}`,
+        `Brand constraints: ${planState.plan.brandGuidelines || "No official logo, unverified claim, or unsupported product detail may be invented."}`,
+        planState.plan.requiredInImageText
+          ? `Exact in-image text: \"${planState.plan.requiredInImageText}\". The Executor must specify a precise placement for this text.`
+          : "Text policy: NO IN-IMAGE TEXT. Reserve clean negative space for a future overlay; render no lettering, logos, labels, numbers, or CTA.",
+        "## Executor production direction",
+        input.prompt,
       ].join("\n"),
     });
     recordImageGeneration(planId, !result.isError);
