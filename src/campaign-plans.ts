@@ -9,6 +9,7 @@ const intakeSchema = z.object({
   audience: z.string().min(5).max(1000).optional(),
   objective: z.string().min(5).max(500).optional(),
   tone: z.string().min(2).max(120).optional(),
+  visualFocus: z.string().min(2).max(1000).optional(),
   callToAction: z.string().min(2).max(120).optional(),
   platforms: z.array(z.enum(["linkedin", "instagram", "facebook", "tiktok"])).min(1).optional(),
   assetUrls: z.array(z.string().url()).max(10).optional(),
@@ -124,10 +125,6 @@ function normalizeIntake(input: CampaignIntake) {
     intake.audience = `General adult consumers likely to be interested in ${product}.`;
     inferredDefaults.push({ field: "audience", value: intake.audience, reason: "No target segment was supplied for this standalone visual." });
   }
-  if (!intake.platforms?.length) {
-    intake.platforms = ["instagram"];
-    inferredDefaults.push({ field: "platforms", value: intake.platforms, reason: "Instagram feed is the default social placement for a standalone image." });
-  }
   if (!intake.callToAction || isNoCta(intake.callToAction)) {
     intake.callToAction = "No explicit CTA — create an awareness visual with clean overlay space.";
     inferredDefaults.push({ field: "callToAction", value: intake.callToAction, reason: "The request is for a visual, not a conversion flow." });
@@ -177,12 +174,13 @@ export function assessCampaignIntake(intake: CampaignIntake) {
     missingQuestions: missing.map(({ field, question, why, selection, placeholder, options }) => ({ field, question, why, selection, placeholder, options })),
     optionalPresentationQuestions,
     chatGuidance: {
-      format: "Ask the missing questions in one compact chat message. The user may answer in any natural format.",
+      format: "Ask the missing questions in one compact chat message. For a direct image request with no platform, always ask where it will run before planning; the user may answer in any natural format.",
       choices: "When options are available, show them inline as examples, never as buttons, forms, radio groups, or checkboxes.",
       platforms: "Accept a comma-separated or natural-language list of platforms and normalize known values to linkedin, instagram, facebook, and tiktok.",
     },
     markdownReplyTemplate: missing.length ? markdownReplyTemplate(missing) : undefined,
     optionalInformation: [
+      "What the image should visibly emphasize, show, or avoid",
       "Brand assets or official logo/product photo (only if it must appear exactly)",
       "Brand colors, typography, and prohibited claims",
       "Exact in-image text or legal copy; otherwise the image will be no-text with overlay space",
@@ -224,6 +222,7 @@ export function createCampaignPlan(input: CampaignIntake) {
     ...normalized.intake,
     campaignName: normalized.intake.campaignName || `Campaign for ${normalized.intake.product}`,
     tone: normalized.intake.tone || "clear, modern, brand-appropriate",
+    visualFocus: normalized.intake.visualFocus || "A clear product or offer hero with a clean copy-safe area.",
     assetUrls: normalized.intake.assetUrls || [],
   });
   const plan: CampaignPlan = {
@@ -241,7 +240,7 @@ export function createCampaignPlan(input: CampaignIntake) {
   return {
     status: "awaiting_concept_approval",
     planId: plan.id,
-    campaignSummary: { campaignName: brief.campaignName, objective: brief.objective, audience: brief.audience, platforms: brief.platforms, callToAction: brief.callToAction },
+    campaignSummary: { campaignName: brief.campaignName, objective: brief.objective, audience: brief.audience, platforms: brief.platforms, visualFocus: brief.visualFocus, callToAction: brief.callToAction },
     concepts: plan.concepts,
     approvalPrompt: "Present the concepts using friendly names. A clear natural-language choice of one concept is enough to continue; do not require a fixed approval phrase.",
   };
@@ -282,6 +281,7 @@ export function getCampaignWorkflowStatus(planId?: string) {
     { name: "create_campaign_plan", role: "Planner", purpose: "Creates the three concepts." },
     { name: "approve_campaign_concept", role: "Orchestrator", purpose: "Records human approval." },
     { name: "generate_image", role: "Executor", purpose: "Creates the approved PNG." },
+    { name: "get_platform_copy_guidance", role: "Executor", purpose: "Provides per-platform caption direction." },
   ];
   const projectGuides = [
     { name: "campaign-brief", role: "Planner", purpose: "Structured intake and completeness checks." },

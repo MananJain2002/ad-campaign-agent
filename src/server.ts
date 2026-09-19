@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { generateOpenAIImage } from "./openai-image.js";
 import { approveCampaignConcept, assessCampaignIntake, campaignIntakeInputSchema, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, requireApprovedPlan } from "./campaign-plans.js";
+import { buildPlatformCopyGuidance } from "./platform-copy.js";
 import { researchUrl } from "./research.js";
 import { createPostDraft, getPostStatus, publishPost, validatePlatformPayload } from "./social.js";
 import { campaignBriefSchema, platformSchema, postPayloadSchema } from "./types.js";
@@ -28,13 +29,13 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("assess_campaign_intake", {
     title: "Assess campaign intake",
-    description: "Planning gate. Classify a direct request to generate one ad image as requestMode `quick_image`; it then safely infers awareness, broad audience, Instagram placement, and a no-CTA visual when absent. Use `full_campaign` only for strategy, lead generation, multiple placements, copy, publishing, or when the user explicitly wants a detailed managed campaign. Returns effectiveIntake and exact missing details. It never generates media or publishes.",
+    description: "Planning gate. Classify a direct request to generate one ad image as requestMode `quick_image`; it can infer awareness, a broad relevant audience, and a no-CTA visual when absent, but it never silently chooses a platform. Ask where the ad will run before planning because placement changes both creative and copy. Use `full_campaign` for strategy, lead generation, multiple placements, copy, publishing, or a detailed managed campaign. Returns effectiveIntake and exact missing details. It never generates media or publishes.",
     inputSchema: campaignIntakeInputSchema,
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(assessCampaignIntake(input), null, 2) }] }));
 
   server.registerTool("create_campaign_plan", {
     title: "Create campaign plan",
-    description: "Planner-only tool. Creates three distinct campaign concepts after intake is complete. A `quick_image` request may use the safe defaults returned by assess_campaign_intake; a full campaign may not. It never generates media. The user must select and explicitly approve one returned concept before execution.",
+    description: "Planner-only tool. Creates three distinct campaign concepts after intake is complete. A direct image request may infer awareness, audience, and no CTA, but requires a user-selected platform first. It never generates media. The user must select one returned concept before execution.",
     inputSchema: campaignIntakeInputSchema,
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(createCampaignPlan(input), null, 2) }] }));
 
@@ -83,6 +84,7 @@ export function createCampaignForgeServer(): McpServer {
         `Target audience: ${planState.plan.brief.audience}`,
         `Platforms: ${planState.plan.brief.platforms.join(", ")}`,
         `Tone: ${planState.plan.brief.tone || "Premium, clear, and appropriate to the selected concept."}`,
+        `Visual focus: ${planState.plan.brief.visualFocus || "Use the approved creative route to determine the visual focus."}`,
         `Call to action context: ${planState.plan.brief.callToAction}`,
         "## Approved creative direction",
         `Concept: ${selectedConcept?.name || "Approved campaign concept"}`,
@@ -98,6 +100,21 @@ export function createCampaignForgeServer(): McpServer {
     });
     recordImageGeneration(planId, !result.isError);
     return result;
+  });
+
+  server.registerTool("get_platform_copy_guidance", {
+    title: "Get platform-specific copy guidance",
+    description: "Executor-only planning tool. After concept selection, returns distinct editorial direction for LinkedIn, Instagram, Facebook, and/or TikTok using the approved campaign brief. The Executor uses it to write the actual ready-to-post captions. It never publishes, creates a draft, or invents product claims.",
+    inputSchema: {
+      planId: z.string().uuid(),
+      copyDirection: z.string().min(2).max(1000).optional(),
+    },
+  }, async ({ planId, copyDirection }) => {
+    const planState = requireApprovedPlan(planId);
+    if ("error" in planState) return { content: [{ type: "text", text: JSON.stringify({ error: planState.error, retryable: false }, null, 2) }], isError: true };
+    const selectedConcept = planState.plan.concepts.find(concept => concept.id === planState.plan.selectedConceptId);
+    if (!selectedConcept) return { content: [{ type: "text", text: JSON.stringify({ error: "Selected campaign concept was not found.", retryable: false }, null, 2) }], isError: true };
+    return { content: [{ type: "text", text: JSON.stringify(buildPlatformCopyGuidance({ brief: planState.plan.brief, selectedConcept, copyDirection }), null, 2) }] };
   });
 
   server.registerTool("validate_platform_payload", {

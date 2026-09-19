@@ -27,6 +27,7 @@ export const campaignBriefSchema = z.object({
   tone: z.string().min(2).max(120),
   callToAction: z.string().min(2).max(120),
   platforms: z.array(platformSchema).min(1),
+  visualFocus: z.string().min(2).max(1000).optional(),
   assetUrls: z.array(z.string().url()).max(10).default([]),
   researchUrl: z.string().url().optional(),
 });
