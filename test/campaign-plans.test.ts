@@ -15,7 +15,7 @@ const completeIntake = {
 test("intake exposes only decision-critical missing questions", () => {
   const result = assessCampaignIntake({ product: completeIntake.product });
   assert.equal(result.readyForPlanning, false);
-  assert.deepEqual(result.missingQuestions.map(question => question.field), ["objective", "audience", "platforms", "callToAction"]);
+  assert.deepEqual(result.missingQuestions.map(question => question.field), ["objective", "audience", "platforms"]);
   assert.equal(result.missingQuestions.find(question => question.field === "objective")?.selection, "single");
   assert.equal(result.missingQuestions.find(question => question.field === "platforms")?.selection, "multiple");
   assert.equal(result.optionalPresentationQuestions[0]?.selection, "single");
@@ -91,6 +91,19 @@ test("full campaign requests retain the CTA gate", () => {
     platforms: completeIntake.platforms,
   });
   assert.deepEqual(result.missingQuestions.map(question => question.field), ["callToAction"]);
+});
+
+test("awareness campaigns do not ask for a CTA", () => {
+  const result = assessCampaignIntake({
+    requestMode: "full_campaign",
+    product: "Conceptual iPhone 18 Pro launch campaign.",
+    objective: "Build launch awareness for the new device.",
+    audience: "Adults interested in premium consumer technology.",
+    platforms: ["instagram"],
+  });
+  assert.equal(result.readyForPlanning, true);
+  assert.match(result.effectiveIntake.callToAction!, /No explicit CTA/);
+  assert.doesNotMatch(result.markdownReplyTemplate || "", /What should people do/);
 });
 
 test("a plan requests a natural-language concept choice rather than a magic approval phrase", () => {

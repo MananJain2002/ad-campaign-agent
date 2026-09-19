@@ -106,6 +106,10 @@ function isNoCta(value: string | undefined) {
   return value !== undefined && /^(none|no cta|nothing|n\/a|not applicable|just an ad|awareness)$/i.test(value.trim());
 }
 
+function isAwarenessObjective(value: string | undefined) {
+  return value !== undefined && /\b(awareness|brand|launch|introduc|announce|visibility)\b/i.test(value);
+}
+
 /**
  * A direct image request is allowed to use ordinary creative defaults. A
  * campaign-management request stays deliberately incomplete until the
@@ -114,6 +118,11 @@ function isNoCta(value: string | undefined) {
 function normalizeIntake(input: CampaignIntake) {
   const intake: CampaignIntake = { ...input };
   const inferredDefaults: InferredDefault[] = [];
+  const shouldUseNoCta = intake.requestMode === "quick_image" || isAwarenessObjective(intake.objective);
+  if (shouldUseNoCta && (!intake.callToAction || isNoCta(intake.callToAction))) {
+    intake.callToAction = "No explicit CTA — create an awareness visual with clean overlay space.";
+    inferredDefaults.push({ field: "callToAction", value: intake.callToAction, reason: "This is launch or awareness work, not a direct-response conversion flow." });
+  }
   if (intake.requestMode !== "quick_image" || !intake.product) return { intake, inferredDefaults };
 
   const product = compactProductName(intake.product);
@@ -124,10 +133,6 @@ function normalizeIntake(input: CampaignIntake) {
   if (!intake.audience) {
     intake.audience = `General adult consumers likely to be interested in ${product}.`;
     inferredDefaults.push({ field: "audience", value: intake.audience, reason: "No target segment was supplied for this standalone visual." });
-  }
-  if (!intake.callToAction || isNoCta(intake.callToAction)) {
-    intake.callToAction = "No explicit CTA — create an awareness visual with clean overlay space.";
-    inferredDefaults.push({ field: "callToAction", value: intake.callToAction, reason: "The request is for a visual, not a conversion flow." });
   }
   return { intake, inferredDefaults };
 }
@@ -163,6 +168,10 @@ function markdownReplyTemplate(missing: IntakeQuestion[]) {
 export function assessCampaignIntake(intake: CampaignIntake) {
   const normalized = normalizeIntake(intake);
   const missing = questions.filter(item => {
+    // A CTA only becomes decision-critical after the user has selected an
+    // objective that needs a direct response. Asking it beside platform
+    // selection turns an awareness launch into an unnecessary form.
+    if (item.field === "callToAction" && (!normalized.intake.objective || isAwarenessObjective(normalized.intake.objective))) return false;
     const value = normalized.intake[item.field];
     return value === undefined || (Array.isArray(value) && value.length === 0);
   });
