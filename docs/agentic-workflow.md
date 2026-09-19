@@ -18,11 +18,11 @@ The planner asks only for facts that change the output: product/offer, campaign 
 
 The user-facing orchestrator collects these details conversationally through the normal chat composer. It returns a standard Markdown message that lists only missing fields and provides a short plain-text reply template. It can offer known options inline and accepts natural-language answers. For platforms, it accepts a comma-separated list such as `LinkedIn, Instagram, TikTok`, normalizes the values, and re-runs the intake gate. It does not use TrueForge question widgets, forms, buttons, or generative UI.
 
-## Visible workflow activity
+## Visible conversation
 
-The orchestrator calls `get_campaign_workflow_status` before showing each phase. Its compact chat summary identifies the active role, role progress, currently completed/next tools, and the project guides in use. Its decision summary explains the workflow transition in concise, user-facing language; it intentionally does not expose private model chain-of-thought.
+The chat surface contains campaign content only: intake questions, three creative directions, approval requests, and the delivered image. It never exposes internal plan IDs, agent roles, skills, tools, or status tables. TrueForge's built-in collapsible Agent steps remains the observability surface for tool calls and execution details.
 
-CampaignForge currently executes these as constrained roles within one saved, user-facing orchestrator agent. The chat summary says this explicitly rather than implying hidden background subagents. Native TrueForge skills are shown separately from project guides, so the UI does not claim a skill is attached when it is not.
+CampaignForge executes constrained planner and executor roles inside one saved, user-facing orchestrator agent. Those roles are an implementation detail, not copy shown to the campaign user.
 
 ## Approval model
 
