@@ -31,7 +31,7 @@ The intake form is the exception: do not place an activity panel beside or aroun
 1. Call `assess_campaign_intake` with all facts currently available.
 2. If `readyForPlanning` is false, immediately call `render_campaign_intake_form` with the same intake object.
 3. Return its `form` field **exactly and verbatim** as the user-facing reply. Do not add prose before or after it. Do not turn it into a markdown list, a question, or a suggested answer. Generative UI is enabled for this agent.
-4. Form state is included with the submitted message. Read those values before calling `assess_campaign_intake` again. Convert the checked `platforms` object into an array of checked platform keys; use the selected visual direction as `tone`.
+4. Form state is included with the submitted message. Read those values before calling `assess_campaign_intake` again. Convert the checked `platforms` object into an array of checked platform keys; use the selected visual direction as `tone`. The UI deliberately does not block an incomplete submission; the intake gate determines what still needs to be collected and returns a follow-up form.
 5. Only if `render_campaign_intake_form` itself fails, explain the failure in one sentence and ask for the missing details in text.
 
 The server-rendered form already uses radio controls for one-choice questions and checkboxes for multi-select questions. Do not edit its `openui` syntax.

@@ -53,6 +53,7 @@ test("intake form uses radio controls for one choice and checkboxes for many", (
   assert.match(form.form!, /CheckBoxGroup\("platforms"/);
   assert.match(form.form!, /Input\("audience"/);
   assert.match(form.form!, /@ToAssistant\("Submit campaign brief"\)/);
+  assert.doesNotMatch(form.form!, /required: true/);
 });
 
 test("image execution remains locked until explicit concept approval", () => {

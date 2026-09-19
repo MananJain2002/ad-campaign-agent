@@ -139,7 +139,7 @@ export function renderCampaignIntakeForm(intake: CampaignIntake) {
     const fieldName = `${question.field}Field`;
     fields.push(fieldName);
     if (question.selection === "text") {
-      definitions.push(`${fieldName} = FormControl(${openUiString(question.question)}, Input(${openUiString(question.field)}, ${openUiString(question.placeholder || "Enter a value")}, "text", {required: true}))`);
+      definitions.push(`${fieldName} = FormControl(${openUiString(question.question)}, Input(${openUiString(question.field)}, ${openUiString(question.placeholder || "Enter a value")}, "text"))`);
       continue;
     }
     const items: string[] = [];
@@ -153,7 +153,7 @@ export function renderCampaignIntakeForm(intake: CampaignIntake) {
       }
     }
     const control = question.selection === "single"
-      ? `RadioGroup(${openUiString(question.field)}, [${items.join(", ")}], null, {required: true})`
+      ? `RadioGroup(${openUiString(question.field)}, [${items.join(", ")}])`
       : `CheckBoxGroup(${openUiString(question.field)}, [${items.join(", ")}])`;
     definitions.unshift(`${fieldName} = FormControl(${openUiString(question.question)}, ${control})`);
   }
