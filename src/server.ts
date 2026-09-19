@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { generateOpenAIImage } from "./openai-image.js";
+import { approveCampaignConcept, assessCampaignIntake, campaignIntakeInputSchema, createCampaignPlan, requireApprovedPlan } from "./campaign-plans.js";
 import { researchUrl } from "./research.js";
 import { createPostDraft, getPostStatus, publishPost, validatePlatformPayload } from "./social.js";
 import { campaignBriefSchema, platformSchema, postPayloadSchema } from "./types.js";
@@ -25,6 +26,28 @@ export function createCampaignForgeServer(): McpServer {
     inputSchema: campaignBriefSchema,
   }, async input => ({ content: [{ type: "text", text: JSON.stringify({ valid: true, brief: input }, null, 2) }] }));
 
+  server.registerTool("assess_campaign_intake", {
+    title: "Assess campaign intake",
+    description: "Planning gate. Identifies the exact campaign details still needed before planning. Call this before creating a campaign plan. It never generates media or publishes.",
+    inputSchema: campaignIntakeInputSchema,
+  }, async input => ({ content: [{ type: "text", text: JSON.stringify(assessCampaignIntake(input), null, 2) }] }));
+
+  server.registerTool("create_campaign_plan", {
+    title: "Create campaign plan",
+    description: "Planner-only tool. Creates three distinct campaign concepts after intake is complete. It never generates media. The user must select and explicitly approve one returned concept before execution.",
+    inputSchema: campaignIntakeInputSchema,
+  }, async input => ({ content: [{ type: "text", text: JSON.stringify(createCampaignPlan(input), null, 2) }] }));
+
+  server.registerTool("approve_campaign_concept", {
+    title: "Approve selected campaign concept",
+    description: "Human approval gate. Unlocks image generation only when the user has explicitly approved the selected concept from this campaign plan.",
+    inputSchema: {
+      planId: z.string().uuid(),
+      conceptId: z.enum(["product-hero", "audience-moment", "benefit-proof"]),
+      approved: z.boolean(),
+    },
+  }, async input => ({ content: [{ type: "text", text: JSON.stringify(approveCampaignConcept(input), null, 2) }] }));
+
   server.registerTool("research_brand_url", {
     title: "Research a supplied brand URL",
     description: "Optionally extracts first-party context from a user-supplied website using Firecrawl. Cite this URL in any strategy claim derived from it.",
@@ -33,13 +56,29 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("generate_image", {
     title: "Generate campaign image",
-    description: "Creates one static campaign image with OpenAI's Images API and returns `inlineMarkdown` pointing at the generated PNG. For a normal ad-image request, make reasonable creative assumptions and call this tool immediately; do not ask whether to write a prompt versus generate an image, and do not require a separate concept-approval step. After a successful call, copy `inlineMarkdown` exactly onto its own line in the final reply so it renders in the chat. Never create or link to SVGs, sandbox files, or download-only assets. Ask one concise follow-up only when a missing must-preserve fact (for example, an exact logo, a product photo, mandatory legal copy, or a required destination format) would materially change the result. The prompt must state the campaign goal, audience, focal subject, composition, visual style, lighting, palette, and either exact in-image text with placement or an explicit no-text instruction.",
+    description: "Executor-only tool. Creates one static campaign image with OpenAI's Images API only after an approved campaign plan. Returns `inlineMarkdown` pointing at the generated PNG; copy it exactly onto its own line in the final reply so it renders in chat. Never create or link to SVGs, sandbox files, or download-only assets. The prompt must state campaign goal, audience, focal subject, composition, visual style, lighting, palette, and either exact in-image text with placement or an explicit no-text instruction.",
     inputSchema: {
+      planId: z.string().uuid(),
       prompt: z.string().min(10).max(4000),
       size: z.enum(["1024x1024", "1024x1536", "1536x1024"]).optional(),
       quality: z.enum(["low", "medium", "high"]).optional(),
     },
-  }, async input => generateOpenAIImage(input));
+  }, async ({ planId, ...input }) => {
+    const planState = requireApprovedPlan(planId);
+    if ("error" in planState) return { content: [{ type: "text", text: JSON.stringify({ error: planState.error, retryable: false }, null, 2) }], isError: true };
+    return generateOpenAIImage({
+      ...input,
+      prompt: [
+        `Approved campaign: ${planState.plan.brief.campaignName}`,
+        `Objective: ${planState.plan.brief.objective}`,
+        `Audience: ${planState.plan.brief.audience}`,
+        `CTA: ${planState.plan.brief.callToAction}`,
+        planState.plan.brandGuidelines ? `Brand guidelines: ${planState.plan.brandGuidelines}` : "Brand guidelines: no official logo or unsupported product claim.",
+        planState.plan.requiredInImageText ? `Required in-image text: ${planState.plan.requiredInImageText}` : "In-image text: none; preserve clean overlay space.",
+        `Executor brief: ${input.prompt}`,
+      ].join("\n"),
+    });
+  });
 
   server.registerTool("validate_platform_payload", {
     title: "Validate a platform post",
