@@ -59,6 +59,10 @@ type IntakeQuestion = {
   options?: Choice[];
 };
 
+function openUiString(value: string) {
+  return JSON.stringify(value);
+}
+
 const objectiveChoices: Choice[] = [
   { value: "Build awareness", label: "Build awareness", description: "Make more of the right people aware of the offer." },
   { value: "Generate leads", label: "Generate leads", description: "Drive enquiries, sign-ups, or qualified contacts." },
@@ -116,6 +120,66 @@ export function assessCampaignIntake(intake: CampaignIntake) {
     instruction: missing.length
       ? "Ask only the listed missing questions in one concise batch. Do not create a plan or generate an asset yet."
       : "Create a campaign plan next; do not generate an asset until a concept is selected and explicitly approved.",
+  };
+}
+
+/**
+ * Builds valid openui-lang on the server so the model never has to invent the
+ * radio/checkbox syntax when CampaignForge asks for missing brief details.
+ */
+export function renderCampaignIntakeForm(intake: CampaignIntake) {
+  const assessment = assessCampaignIntake(intake);
+  if (assessment.readyForPlanning) {
+    return { status: "not_needed", message: "The intake is complete. Create the campaign plan instead of rendering a form." };
+  }
+
+  const fields: string[] = [];
+  const definitions: string[] = [];
+  for (const question of assessment.missingQuestions) {
+    const fieldName = `${question.field}Field`;
+    fields.push(fieldName);
+    if (question.selection === "text") {
+      definitions.push(`${fieldName} = FormControl(${openUiString(question.question)}, Input(${openUiString(question.field)}, ${openUiString(question.placeholder || "Enter a value")}, "text", {required: true}))`);
+      continue;
+    }
+    const items: string[] = [];
+    for (const option of question.options || []) {
+      const itemName = `${question.field}${option.value.replace(/[^a-zA-Z0-9]/g, "")}`;
+      items.push(itemName);
+      if (question.selection === "single") {
+        definitions.push(`${itemName} = RadioItem(${openUiString(option.label)}, ${openUiString(option.description || "")}, ${openUiString(option.value)})`);
+      } else {
+        definitions.push(`${itemName} = CheckBoxItem(${openUiString(option.label)}, ${openUiString(option.description || "")}, ${openUiString(option.value)})`);
+      }
+    }
+    const control = question.selection === "single"
+      ? `RadioGroup(${openUiString(question.field)}, [${items.join(", ")}], null, {required: true})`
+      : `CheckBoxGroup(${openUiString(question.field)}, [${items.join(", ")}])`;
+    definitions.unshift(`${fieldName} = FormControl(${openUiString(question.question)}, ${control})`);
+  }
+
+  const visualItems = styleChoices.map(option => `tone${option.value.replace(/[^a-zA-Z0-9]/g, "")}`);
+  fields.push("toneField", "inImageTextField");
+  definitions.push(`toneField = FormControl("Visual direction (optional)", RadioGroup("tone", [${visualItems.join(", ")}]))`);
+  for (const option of styleChoices) {
+    const itemName = `tone${option.value.replace(/[^a-zA-Z0-9]/g, "")}`;
+    definitions.push(`${itemName} = RadioItem(${openUiString(option.label)}, ${openUiString(option.description || "")}, ${openUiString(option.value)})`);
+  }
+  definitions.push('inImageTextField = FormControl("Exact in-image text (optional)", Input("requiredInImageText", "Leave blank for a no-text image", "text"))');
+
+  const openui = [
+    `root = Stack([heading, helper, form])`,
+    `heading = TextContent("Campaign setup", "large-heavy")`,
+    `helper = TextContent("Choose one where required; select every platform that applies.")`,
+    `form = Form("campaign-brief", buttons, [${fields.join(", ")}])`,
+    ...definitions,
+    'buttons = Buttons([Button("Continue to plan", Action([@ToAssistant("Submit campaign brief")]), "primary")])',
+  ].join("\n");
+
+  return {
+    status: "form_ready",
+    form: `\`\`\`openui\n${openui}\n\`\`\``,
+    submissionContract: "Return form exactly as supplied. On submit, merge fields with known facts, convert checked platform keys to a platforms array, and call assess_campaign_intake again.",
   };
 }
 

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { generateOpenAIImage } from "./openai-image.js";
-import { approveCampaignConcept, assessCampaignIntake, campaignIntakeInputSchema, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, requireApprovedPlan } from "./campaign-plans.js";
+import { approveCampaignConcept, assessCampaignIntake, campaignIntakeInputSchema, createCampaignPlan, getCampaignWorkflowStatus, recordImageGeneration, renderCampaignIntakeForm, requireApprovedPlan } from "./campaign-plans.js";
 import { researchUrl } from "./research.js";
 import { createPostDraft, getPostStatus, publishPost, validatePlatformPayload } from "./social.js";
 import { campaignBriefSchema, platformSchema, postPayloadSchema } from "./types.js";
@@ -31,6 +31,12 @@ export function createCampaignForgeServer(): McpServer {
     description: "Planning gate. Identifies the exact campaign details still needed before planning. Call this before creating a campaign plan. It never generates media or publishes.",
     inputSchema: campaignIntakeInputSchema,
   }, async input => ({ content: [{ type: "text", text: JSON.stringify(assessCampaignIntake(input), null, 2) }] }));
+
+  server.registerTool("render_campaign_intake_form", {
+    title: "Render campaign intake form",
+    description: "Returns a complete, valid TrueForge openui form for the currently missing CampaignForge brief fields. After intake is incomplete, call this immediately and return its `form` field exactly—never replace it with a plaintext list. It never plans, generates media, or publishes.",
+    inputSchema: campaignIntakeInputSchema,
+  }, async input => ({ content: [{ type: "text", text: JSON.stringify(renderCampaignIntakeForm(input), null, 2) }] }));
 
   server.registerTool("create_campaign_plan", {
     title: "Create campaign plan",

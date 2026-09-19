@@ -24,32 +24,17 @@ The panel must visibly include:
 
 Use `Card`, `CardHeader`, `TextContent`, `Steps`, `StepsItem`, and `TagBlock` for this panel. Keep it compact and do not repeat the same status facts in normal markdown.
 
+The intake form is the exception: do not place an activity panel beside or around an intake form. The form must be the only user-facing output for that turn.
+
 ## Intake
 
 1. Call `assess_campaign_intake` with all facts currently available.
-2. If `readyForPlanning` is false, render exactly one `openui` form containing only `missingQuestions`, plus the optional visual-direction question if it helps the request.
-3. For a question whose `selection` is `single`, render `RadioGroup`. For `multiple`, render `CheckBoxGroup`. For `text`, render `Input` or `TextArea`.
-4. Make the submit button `Button("Continue", Action([@ToAssistant("Submit campaign brief")]), "primary")`. Form state is included with the submitted message. Read those values before calling `assess_campaign_intake` again. Convert the checked `platforms` object into an array of checked platform keys; use the selected visual direction as `tone`.
-5. If the form is unavailable, ask the same questions as a compact numbered list, clearly marking “select one” versus “select all that apply.”
+2. If `readyForPlanning` is false, immediately call `render_campaign_intake_form` with the same intake object.
+3. Return its `form` field **exactly and verbatim** as the user-facing reply. Do not add prose before or after it. Do not turn it into a markdown list, a question, or a suggested answer. Generative UI is enabled for this agent.
+4. Form state is included with the submitted message. Read those values before calling `assess_campaign_intake` again. Convert the checked `platforms` object into an array of checked platform keys; use the selected visual direction as `tone`.
+5. Only if `render_campaign_intake_form` itself fails, explain the failure in one sentence and ask for the missing details in text.
 
-### Form template
-
-Use this exact pattern and substitute only the fields returned by intake. Every value must be present in the submitted form state.
-
-```openui
-root = Stack([heading, form])
-heading = TextContent("Campaign setup", "large-heavy")
-form = Form("campaign-brief", buttons, [goalField, placementsField])
-goalField = FormControl("Campaign goal", RadioGroup("objective", [goalAwareness, goalLeads], "Build awareness", {required: true}))
-goalAwareness = RadioItem("Build awareness", "Make the offer known", "Build awareness")
-goalLeads = RadioItem("Generate leads", "Drive qualified enquiries", "Generate leads")
-placementsField = FormControl("Where will this run?", CheckBoxGroup("platforms", [linkedin, instagram]))
-linkedin = CheckBoxItem("LinkedIn", "Professional feed placement", "linkedin")
-instagram = CheckBoxItem("Instagram", "Feed, Story, or Reel", "instagram")
-buttons = Buttons([Button("Continue", Action([@ToAssistant("Submit campaign brief")]), "primary")])
-```
-
-Do not render a checkbox when exactly one answer is allowed. Do not render a radio group when more than one platform can be chosen.
+The server-rendered form already uses radio controls for one-choice questions and checkboxes for multi-select questions. Do not edit its `openui` syntax.
 
 ## Planning and approval
 
