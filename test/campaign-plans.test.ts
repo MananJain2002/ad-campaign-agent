@@ -51,6 +51,9 @@ test("intake provides chat-first guidance without an interactive form contract",
   assert.match(result.chatGuidance.format, /chat message/i);
   assert.match(result.chatGuidance.choices, /never as buttons/i);
   assert.match(result.chatGuidance.platforms, /comma-separated/i);
+  assert.match(result.markdownReplyTemplate!, /^## A few details/m);
+  assert.match(result.markdownReplyTemplate!, /```text/);
+  assert.match(result.markdownReplyTemplate!, /Platforms: …/);
 });
 
 test("image execution remains locked until explicit concept approval", () => {

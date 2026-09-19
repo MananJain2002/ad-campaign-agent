@@ -94,6 +94,34 @@ const optionalPresentationQuestions: IntakeQuestion[] = [
   { field: "requiredInImageText", question: "Should the image contain exact text?", why: "Generated text can be unreliable, so exact legal copy or a headline must be supplied deliberately.", selection: "text", placeholder: "Leave blank for a no-text image with clean overlay space." },
 ];
 
+function markdownReplyTemplate(missing: IntakeQuestion[]) {
+  const lines = missing.map(question => {
+    const choices = question.options?.map(option => option.label).join(", ");
+    return choices
+      ? `- **${question.field === "callToAction" ? "Call to action" : question.field[0]!.toUpperCase() + question.field.slice(1)}** — ${question.question} _(${choices})_`
+      : `- **${question.field === "callToAction" ? "Call to action" : question.field[0]!.toUpperCase() + question.field.slice(1)}** — ${question.question}`;
+  });
+
+  const replyFields = missing.map(question => {
+    const label = question.field === "callToAction" ? "CTA" : question.field[0]!.toUpperCase() + question.field.slice(1);
+    return `${label}: …`;
+  });
+
+  return [
+    "## A few details before I plan the campaign",
+    "",
+    "I have the product context. Please share:",
+    "",
+    ...lines,
+    "",
+    "Reply naturally, or use this format:",
+    "",
+    "```text",
+    ...replyFields,
+    "```",
+  ].join("\n");
+}
+
 export function assessCampaignIntake(intake: CampaignIntake) {
   const missing = questions.filter(item => {
     const value = intake[item.field];
@@ -108,6 +136,7 @@ export function assessCampaignIntake(intake: CampaignIntake) {
       choices: "When options are available, show them inline as examples, never as buttons, forms, radio groups, or checkboxes.",
       platforms: "Accept a comma-separated or natural-language list of platforms and normalize known values to linkedin, instagram, facebook, and tiktok.",
     },
+    markdownReplyTemplate: missing.length ? markdownReplyTemplate(missing) : undefined,
     optionalInformation: [
       "Brand assets or official logo/product photo (only if it must appear exactly)",
       "Brand colors, typography, and prohibited claims",
