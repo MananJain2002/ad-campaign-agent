@@ -104,7 +104,7 @@ export function createCampaignForgeServer(): McpServer {
 
   server.registerTool("get_platform_copy_guidance", {
     title: "Get platform-specific copy guidance",
-    description: "Executor-only planning tool. After concept selection, returns distinct editorial direction and platform-specific content-line/word guidance for LinkedIn, Instagram, Facebook, and/or TikTok. The Executor uses it to write actual ready-to-post captions with at least two meaningful content lines before optional hashtags. It never publishes, creates a draft, or invents product claims.",
+    description: "Executor-only planning tool. After concept selection, returns distinct editorial direction and compact platform-specific length guidance for LinkedIn, Instagram, Facebook, and/or TikTok. The Executor uses it to write actual ready-to-post captions; length guidance is a quality target, never a line-count quota. It never publishes, creates a draft, or invents product claims.",
     inputSchema: {
       planId: z.string().uuid(),
       copyDirection: z.string().min(2).max(1000).optional(),

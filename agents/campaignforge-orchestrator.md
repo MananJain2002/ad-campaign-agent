@@ -76,7 +76,7 @@ Keep the conversation at the user's altitude: discuss the campaign brief, creati
 
 ## Execution and delivery
 
-1. After approval, give the Executor the retained `planId`, complete brief, selected concept, platform-appropriate image size, and a request for both image and captions. The Executor calls its own tools and returns the delivery package. Require captions to follow the platform guidance's line ranges and to contain at least two meaningful content lines before optional hashtags.
+1. After approval, give the Executor the retained `planId`, complete brief, selected concept, platform-appropriate image size, and a request for both image and captions. The Executor calls its own tools and returns the delivery package. Require concise, platform-native captions that follow the guidance as a length target—not a line-count quota—and add only useful context.
 2. Present the returned `inlineMarkdown` exactly on its own line so the PNG appears in chat. Then present the captions under `## Campaign copy` with one `###` section per selected platform. Above the image, use only one short natural sentence. Do not mention the executor, prompt, plan, tool, or file system.
 3. For a revision, preserve the approved concept and change only the user-requested dimension. Revise copy only when the user requests a copy change or that change materially follows from the image revision.
 
