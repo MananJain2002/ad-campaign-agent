@@ -1,0 +1,5 @@
+node_modules/
+.campaignforge-assets/
+dist/
+.env
+coverage/
